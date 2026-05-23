@@ -7,8 +7,8 @@ import re
 
 from .constants import US_STATES
 
+# Strict mm-yyyy format: months 01-12 only. Shared with response_utils for safe key parsing.
 MM_YYYY_RE = re.compile(r"^(0[1-9]|1[0-2])-(\d{4})$")
-"""Strict mm-yyyy format: months 01-12 only. Shared with response_utils for safe key parsing."""
 
 _YYYY_RE = re.compile(r"^\d{4}$")
 
