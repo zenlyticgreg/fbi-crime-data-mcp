@@ -20,9 +20,9 @@ Created for data journalists, researchers, and anyone interested in exploring US
   - Expanded homicide and property crime details
   - Police employment, Law Enforcement Officers Killed and Assaulted (LEOKA), Law Enforcement Suicide Data Collection (LESDC), and use of force
   - Agency lookup, reference data, cache management, and spillover reading
-- **Three query levels** — national, state, and agency — with automatic parameter validation
+- **Geographic query levels** — national, state, and agency for most tools; some also support region (`get_police_employment`, `get_nibrs_estimation`) or agency-type / population-size breakdowns (`get_nibrs_estimation`) — all with automatic parameter validation
 - **Smart yearly aggregation** — monthly API data is automatically rolled up into yearly totals (sums for counts, averages for rates, last value for population), with an option for monthly granularity
-- **Tiered disk-backed caching** — 90-day time-to-live (TTL) for stable data (trends, reference, summaries) and 30-day TTL for dynamic data (incidents, arrests, agency lookups)
+- **Tiered disk-backed caching** — 90-day time-to-live (TTL) for stable data (trends, reference, summaries, NIBRS estimation), 30-day TTL for dynamic data (incidents, arrests, agency lookups), and 1-day TTL for the homepage summary (refresh dates change frequently)
 - **Spillover handling** — responses exceeding 128K characters are saved to disk with a preview returned, so large queries are never silently truncated
 - **Input validation** — date format/ordering checks, offense and bias code validation, and level-based parameter requirements with clear error messages
 - **Sliding-window rate limiting** — 1,000 requests/hour with transparent wait-time feedback
@@ -61,7 +61,7 @@ FBI_API_KEY=your-key uvx fbi-crime-data-mcp
 |------|-------------|
 | [`get_summarized_crime_data`](src/fbi_crime_data_mcp/tools/summarized.py) | SRS crime data — rates, actuals, clearances for violent crime, property crime, homicide, rape, robbery, assault, burglary, larceny, motor vehicle theft, arson |
 | [`get_nibrs_data`](src/fbi_crime_data_mcp/tools/nibrs.py) | NIBRS incident-based data for 70+ offense types |
-| [`get_arrest_data`](src/fbi_crime_data_mcp/tools/arrests.py) | Arrest statistics by offense with optional demographic breakdowns (sex, race) |
+| [`get_arrest_data`](src/fbi_crime_data_mcp/tools/arrests.py) | Arrest statistics by offense with optional demographic breakdowns (male, female, sex, race) |
 | [`get_crime_trends`](src/fbi_crime_data_mcp/tools/trends.py) | National crime trend percent changes across 10 crime types |
 | [`get_nibrs_estimation`](src/fbi_crime_data_mcp/tools/nibrs_estimation.py) | NIBRS national estimates by state, region, agency type, or population size |
 
