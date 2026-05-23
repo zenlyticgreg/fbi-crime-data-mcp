@@ -206,6 +206,75 @@ class TestManageCache:
         await manage_cache("clear")
         assert not stats_file.exists()
 
+    async def test_clear_resets_in_memory_middleware_stats(self, fake_cache, monkeypatch):
+        """Full clear zeroes the in-memory hit/miss counters AND prevents a
+        subsequent _save_stats from re-persisting the pre-clear totals.
+
+        Regression for roborev job 2374: without _reset_middleware_stats(),
+        the StatisticsWrapper retains its hit/miss counters across a clear,
+        and the next lifespan shutdown re-persists those (now-stale) totals
+        into the just-cleared stats file, silently undoing the clear.
+        """
+        from fastmcp.server.middleware.caching import ResponseCachingMiddleware
+        from key_value.aio.stores.memory import MemoryStore
+        from key_value.aio.wrappers.statistics.wrapper import KVStoreCollectionStatistics
+
+        import fbi_crime_data_mcp.api_client as api_client_mod
+        import fbi_crime_data_mcp.tools.cache as cache_mod
+
+        # Build a real middleware so the isinstance() guard in
+        # _reset_middleware_stats passes.
+        mw = ResponseCachingMiddleware(cache_storage=MemoryStore())
+        # Pre-populate the in-memory stats with non-zero counters under the
+        # "tools/call" collection — that's what surfaces as `call_tool` in
+        # ResponseCachingStatistics and CACHE_COLLECTION_NAMES.
+        col_stats = KVStoreCollectionStatistics()
+        col_stats.get.hit = 42
+        col_stats.get.miss = 7
+        mw._stats._statistics.collections["tools/call"] = col_stats
+
+        monkeypatch.setattr(cache_mod.mcp, "middleware", [mw])
+
+        stats_file = fake_cache / "stats.json"
+        monkeypatch.setattr(cache_mod, "_STATS_FILE", stats_file)
+        monkeypatch.setattr(api_client_mod, "STATS_FILE", stats_file)
+
+        await manage_cache("clear")
+
+        # In-memory counters cleared.
+        assert mw._stats._statistics.collections == {}
+
+        # A subsequent _save_stats must NOT re-introduce the pre-clear
+        # totals. Without the reset, this would write hits=42, misses=7.
+        _save_stats(cache_mod.mcp)
+        persisted = _load_persisted_stats()
+        assert persisted.get("call_tool", {"hits": 0, "misses": 0})["hits"] == 0
+        assert persisted.get("call_tool", {"hits": 0, "misses": 0})["misses"] == 0
+
+    async def test_clear_middleware_stats_tolerates_broken_internals(self, fake_cache, monkeypatch):
+        """The reset is best-effort: if the private fastmcp/py-key-value
+        layout changes and the expected ``_stats._statistics.collections``
+        chain raises AttributeError, the clear must still succeed instead
+        of crashing. Exercises the AttributeError fallback in
+        _reset_middleware_stats.
+        """
+        from fastmcp.server.middleware.caching import ResponseCachingMiddleware
+        from key_value.aio.stores.memory import MemoryStore
+
+        import fbi_crime_data_mcp.tools.cache as cache_mod
+
+        mw = ResponseCachingMiddleware(cache_storage=MemoryStore())
+        # Swap _stats with an object that doesn't expose _statistics —
+        # simulates a future refactor of the wrapper layout.
+        mw._stats = object()
+
+        monkeypatch.setattr(cache_mod.mcp, "middleware", [mw])
+
+        # Must not raise.
+        result = await manage_cache("clear")
+        data = json.loads(result)
+        assert data["action"] == "Cleared all entries"
+
     async def test_clear_expired_keeps_stats_file(self, fake_cache, monkeypatch):
         """Clearing expired entries does not remove persisted stats."""
         import fbi_crime_data_mcp.api_client as api_client_mod
