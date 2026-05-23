@@ -251,7 +251,6 @@ class TestManageCache:
         assert persisted.get("call_tool", {"hits": 0, "misses": 0})["hits"] == 0
         assert persisted.get("call_tool", {"hits": 0, "misses": 0})["misses"] == 0
 
-
     async def test_clear_middleware_stats_tolerates_broken_internals(self, fake_cache, monkeypatch):
         """The reset is best-effort: if the private fastmcp/py-key-value
         layout changes and the expected ``_stats._statistics.collections``
