@@ -82,8 +82,33 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Extract release notes from CHANGELOG
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Exact prefix match on "## [VERSION]" to avoid regex metachar
+          # ambiguity (e.g. "0.3.1" accidentally matching "0a3b1"). Strip
+          # the heading itself — the GitHub Release UI shows the tag name
+          # already.
+          awk -v ver="$VERSION" '
+            BEGIN { target = "## [" ver "]" }
+            /^## \[/ {
+              if (found) exit
+              if (substr($0, 1, length(target)) == target) { found=1; next }
+            }
+            found
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::No CHANGELOG entry found for v${VERSION}. Add a '## [${VERSION}] - YYYY-MM-DD' section before tagging."
+            exit 1
+          fi
+          echo "::group::Release notes for v${VERSION}"
+          cat RELEASE_NOTES.md
+          echo "::endgroup::"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false
           files: dist/*
