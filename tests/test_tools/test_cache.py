@@ -251,6 +251,31 @@ class TestManageCache:
         assert persisted.get("call_tool", {"hits": 0, "misses": 0})["hits"] == 0
         assert persisted.get("call_tool", {"hits": 0, "misses": 0})["misses"] == 0
 
+
+    async def test_clear_middleware_stats_tolerates_broken_internals(self, fake_cache, monkeypatch):
+        """The reset is best-effort: if the private fastmcp/py-key-value
+        layout changes and the expected ``_stats._statistics.collections``
+        chain raises AttributeError, the clear must still succeed instead
+        of crashing. Exercises the AttributeError fallback in
+        _reset_middleware_stats.
+        """
+        from fastmcp.server.middleware.caching import ResponseCachingMiddleware
+        from key_value.aio.stores.memory import MemoryStore
+
+        import fbi_crime_data_mcp.tools.cache as cache_mod
+
+        mw = ResponseCachingMiddleware(cache_storage=MemoryStore())
+        # Swap _stats with an object that doesn't expose _statistics —
+        # simulates a future refactor of the wrapper layout.
+        mw._stats = object()
+
+        monkeypatch.setattr(cache_mod.mcp, "middleware", [mw])
+
+        # Must not raise.
+        result = await manage_cache("clear")
+        data = json.loads(result)
+        assert data["action"] == "Cleared all entries"
+
     async def test_clear_expired_keeps_stats_file(self, fake_cache, monkeypatch):
         """Clearing expired entries does not remove persisted stats."""
         import fbi_crime_data_mcp.api_client as api_client_mod
