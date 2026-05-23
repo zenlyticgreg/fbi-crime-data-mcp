@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-05-23
+
+### Fixed
+- `manage_cache action="clear"` now resets in-memory `ResponseCachingMiddleware` hit/miss counters; previously, lifespan shutdown silently re-persisted pre-clear totals, undoing the clear
+- Tightened `_MM_YYYY_RE` in `response_utils` to reject impossible months (e.g., `13-2020`); the loose pattern was silently rolling malformed keys into yearly aggregates
+- README: corrected cache tier description (added missing 1-day TTL tier for homepage summary; included `get_nibrs_estimation` in the 90-day group)
+- README: corrected query-level description (some tools support region/agency-type/size beyond national/state/agency)
+- README: corrected `get_arrest_data` demographic breakdown categories (male, female, sex, race)
+
+### Changed
+- Unified the strict `mm-yyyy` regex between `validators` and `response_utils` (single source of truth)
+- Documented the strategy-inheritance invariant in `_aggregate_section`
+
+### Added
+- Regression tests for the cache-clear stats reset (happy path + AttributeError fallback for broken private layout)
+- PyPI version badge in README
+
 ## [0.3.0] - 2026-04-04
 
 ### Added
