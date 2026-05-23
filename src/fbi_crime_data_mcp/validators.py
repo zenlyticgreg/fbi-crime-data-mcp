@@ -7,7 +7,9 @@ import re
 
 from .constants import US_STATES
 
-_MM_YYYY_RE = re.compile(r"^(0[1-9]|1[0-2])-(\d{4})$")
+MM_YYYY_RE = re.compile(r"^(0[1-9]|1[0-2])-(\d{4})$")
+"""Strict mm-yyyy format: months 01-12 only. Shared with response_utils for safe key parsing."""
+
 _YYYY_RE = re.compile(r"^\d{4}$")
 
 
@@ -63,7 +65,7 @@ def validate_year_int(year: int, param_name: str = "year") -> str | None:
 
 def validate_mm_yyyy(value: str, param_name: str) -> str | None:
     """Return error string if value doesn't match mm-yyyy format, else None."""
-    if not _MM_YYYY_RE.match(value):
+    if not MM_YYYY_RE.match(value):
         return f"Invalid {param_name} '{value}'. Must be in mm-yyyy format (e.g., '01-2020')."
     return None
 
@@ -80,8 +82,8 @@ def validate_date_order_mm_yyyy(from_date: str, to_date: str) -> str | None:
 
     Assumes both dates have already passed format validation.
     """
-    fm = _MM_YYYY_RE.match(from_date)
-    tm = _MM_YYYY_RE.match(to_date)
+    fm = MM_YYYY_RE.match(from_date)
+    tm = MM_YYYY_RE.match(to_date)
     if not fm or not tm:
         return None  # format validation will catch this
     from_tuple = (int(fm.group(2)), int(fm.group(1)))  # (year, month)

@@ -45,6 +45,26 @@ def _safe_collection_dir(info: dict) -> Path | None:
     return resolved
 
 
+def _reset_middleware_stats() -> None:
+    """Best-effort reset of in-memory hit/miss counters on every cache middleware.
+
+    Reaches into the StatisticsWrapper's private ``_statistics.collections``
+    dict — there is no public reset API in fastmcp/py-key-value as of this
+    writing. Wrapped in try/except so a future refactor that breaks the layout
+    will silently no-op rather than crash the clear operation.
+    """
+    for mw in mcp.middleware:
+        if not isinstance(mw, ResponseCachingMiddleware):
+            continue
+        try:
+            stats_wrapper = mw._stats  # noqa: SLF001
+            collections = stats_wrapper._statistics.collections  # noqa: SLF001
+            if isinstance(collections, dict):
+                collections.clear()
+        except AttributeError:
+            continue
+
+
 @mcp.tool()
 async def manage_cache(action: str) -> str:
     """Manage the FBI Crime Data response cache.
@@ -272,7 +292,10 @@ def _clear_cache(expired_only: bool) -> str:
             except OSError:
                 pass
 
-    # Clear spillover files and persisted stats on full clear
+    # Clear spillover files, persisted stats, and in-memory middleware
+    # counters on full clear. Without resetting the middleware counters, the
+    # next lifespan shutdown would re-persist the pre-clear hit/miss totals
+    # via _save_stats, undoing the clear.
     spillover_removed = 0
     if not expired_only:
         if _SPILLOVER_DIR.is_dir():
@@ -286,6 +309,7 @@ def _clear_cache(expired_only: bool) -> str:
             _STATS_FILE.unlink(missing_ok=True)
         except OSError:
             pass
+        _reset_middleware_stats()
 
     action = "expired entries" if expired_only else "all entries"
     result = {

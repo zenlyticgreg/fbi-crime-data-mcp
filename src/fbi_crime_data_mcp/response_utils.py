@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-import re
 from collections import defaultdict
 
-_MM_YYYY_RE = re.compile(r"^(\d{2})-(\d{4})$")
+from .validators import MM_YYYY_RE as _MM_YYYY_RE
 
 # Subsection names where values should be averaged (rates) or use the last
 # observed monthly value when collapsed to yearly data (populations)
@@ -160,7 +159,15 @@ def _strategy_for_key(key: str) -> str:
 
 
 def _aggregate_section(section: dict, parent_strategy: str) -> dict:
-    """Recursively walk a section and aggregate any mm-yyyy keyed dicts found."""
+    """Recursively walk a section and aggregate any mm-yyyy keyed dicts found.
+
+    Strategy-inheritance invariant: while *parent_strategy* is ``"sum"`` (the
+    default), each child key is independently re-classified via
+    ``_strategy_for_key`` — this is how we discover nested ``rates`` or
+    ``population`` subsections. Once we've descended into a non-sum subtree
+    (e.g. inside ``rates``), ALL further descendants inherit that strategy
+    so nested rate breakdowns stay averaged rather than reverting to summing.
+    """
     if _is_monthly_dict(section):
         return _collapse_monthly(section, parent_strategy)
 
