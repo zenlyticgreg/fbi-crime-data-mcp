@@ -206,7 +206,6 @@ class TestManageCache:
         await manage_cache("clear")
         assert not stats_file.exists()
 
-
     async def test_clear_resets_in_memory_middleware_stats(self, fake_cache, monkeypatch):
         """Full clear zeroes the in-memory hit/miss counters AND prevents a
         subsequent _save_stats from re-persisting the pre-clear totals.
