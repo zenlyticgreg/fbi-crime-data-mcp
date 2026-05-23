@@ -8,7 +8,7 @@ FBI_API_KEY=xxx uv run fbi-crime-data-mcp           # Run server (stdio transpor
 
 ## Testing
 ```bash
-uv run pytest                                       # Run all tests (324 tests)
+uv run pytest                                       # Run all tests (392 tests)
 uv run pytest -x -q                                 # Stop on first failure, quiet
 uv run pytest tests/test_validators.py              # Run specific test file
 uv run pytest -k "test_name"                        # Run specific test by name
