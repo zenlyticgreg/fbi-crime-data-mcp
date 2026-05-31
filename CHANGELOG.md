@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 - Validate user-supplied URL path segments (`ori`, `district_code`, use-of-force `group`/`spec`) via new `validate_path_segment()`, rejecting `/`, `\`, and `..` to prevent path traversal / endpoint redirection
-- Stop surfacing the raw `httpx` exception in `api_get()`'s network-error branch and no longer pass it to the logger; some httpx errors carry the request URL, which includes the `API_KEY` query parameter
+- Stop surfacing or logging the raw `httpx` exception in `api_get()`'s network-error branch; some httpx errors carry the request URL, which includes the `API_KEY` query parameter. The response is now a generic message and only the exception type is logged
 
 ### Fixed
 - `manage_cache` runs its blocking filesystem I/O (glob/read/rmtree) via `asyncio.to_thread`, so it no longer stalls the event loop

@@ -186,7 +186,10 @@ def validate_path_segment(value: str, param_name: str) -> str | None:
     any '..' sequence.
     """
     if not value or ".." in value or not _PATH_SEGMENT_RE.match(value):
-        return f"Invalid {param_name} '{value}'. Use only letters, digits, '.', '_', or '-'."
+        return (
+            f"Invalid {param_name} '{value}'. Must be non-empty, contain no '..', "
+            "and use only letters, digits, '.', '_', or '-'."
+        )
     return None
 
 

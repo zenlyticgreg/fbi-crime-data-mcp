@@ -80,17 +80,27 @@ async def manage_cache(action: str) -> str:
         return "Cache directory does not exist. No cached data."
 
     # Cache scanning/clearing does blocking filesystem I/O (glob, read, rmtree),
-    # so run it in a worker thread to avoid stalling the event loop.
+    # so run it in a worker thread to avoid stalling the event loop. Reads and
+    # resets of the FastMCP middleware stats stay on the event loop, where
+    # request handling also touches them, to avoid cross-thread access.
     if action == "status":
-        return await asyncio.to_thread(_cache_status)
+        hit_rate = _hit_rate()
+        return await asyncio.to_thread(_cache_status, hit_rate)
     elif action == "clear":
-        return await asyncio.to_thread(_clear_cache, expired_only=False)
+        result = await asyncio.to_thread(_clear_cache, expired_only=False)
+        _reset_middleware_stats()
+        return result
     else:
         return await asyncio.to_thread(_clear_cache, expired_only=True)
 
 
-def _cache_status() -> str:
-    """Gather cache statistics."""
+def _cache_status(hit_rate: dict) -> str:
+    """Gather cache statistics.
+
+    ``hit_rate`` is computed by the caller on the event loop (it reads the
+    FastMCP middleware stats), so this filesystem-heavy scan can run safely in
+    a worker thread without touching event-loop-confined middleware objects.
+    """
     now = datetime.now(tz=UTC)
     total_entries = 0
     expired_entries = 0
@@ -168,7 +178,7 @@ def _cache_status() -> str:
         "oldest_entry": oldest.isoformat() if oldest else None,
         "newest_entry": newest.isoformat() if newest else None,
         "collections": collections,
-        "hit_rate": _hit_rate(),
+        "hit_rate": hit_rate,
         "spillover": _spillover_stats(),
     }
     return json.dumps(result, indent=2)
@@ -295,10 +305,11 @@ def _clear_cache(expired_only: bool) -> str:
             except OSError:
                 pass
 
-    # Clear spillover files, persisted stats, and in-memory middleware
-    # counters on full clear. Without resetting the middleware counters, the
-    # next lifespan shutdown would re-persist the pre-clear hit/miss totals
-    # via _save_stats, undoing the clear.
+    # Clear spillover files and persisted stats on full clear. The in-memory
+    # middleware counters are reset separately by the caller (manage_cache) on
+    # the event loop — see the note there. Without that reset, the next
+    # lifespan shutdown would re-persist the pre-clear hit/miss totals via
+    # _save_stats, undoing the clear.
     spillover_removed = 0
     if not expired_only:
         if _SPILLOVER_DIR.is_dir():
@@ -312,7 +323,6 @@ def _clear_cache(expired_only: bool) -> str:
             _STATS_FILE.unlink(missing_ok=True)
         except OSError:
             pass
-        _reset_middleware_stats()
 
     action = "expired entries" if expired_only else "all entries"
     result = {
