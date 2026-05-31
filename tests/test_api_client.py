@@ -284,35 +284,45 @@ class TestCollectStats:
 
     def test_skips_non_caching_middleware(self, monkeypatch):
         """Non-caching middleware (e.g. the spillover middleware) is skipped,
-        not queried for statistics."""
+        not queried for statistics.
+
+        Uses real, distinct fake classes rather than reassigning a mock's
+        ``__class__`` so the ``isinstance`` check is unambiguous and the test
+        does not depend on MagicMock spoofing internals.
+        """
         from unittest.mock import MagicMock
 
         from fbi_crime_data_mcp.api_client import CACHE_COLLECTION_NAMES
 
-        caching_mw = MagicMock(spec=["statistics"])
-        caching_mw.__class__ = type("FakeCachingMW", (), {})
+        def _fake_stats():
+            stats = MagicMock()
+            for name in CACHE_COLLECTION_NAMES:
+                col = MagicMock()
+                col.get.hit = 2
+                col.get.miss = 0
+                setattr(stats, name, col)
+            return stats
+
+        class FakeCachingMW:
+            def statistics(self):
+                return _fake_stats()
+
+        class FakeOtherMW:
+            def statistics(self):  # pragma: no cover - must never be called
+                raise AssertionError("statistics() called on non-caching middleware")
+
         monkeypatch.setattr(
             "fbi_crime_data_mcp.api_client.ResponseCachingMiddleware",
-            type(caching_mw),
+            FakeCachingMW,
         )
-        stats = MagicMock()
-        for name in CACHE_COLLECTION_NAMES:
-            col = MagicMock()
-            col.get.hit = 2
-            col.get.miss = 0
-            setattr(stats, name, col)
-        caching_mw.statistics.return_value = stats
-
-        # A different type that is NOT the registered caching middleware.
-        non_caching_mw = MagicMock(spec=["statistics"])
 
         server = MagicMock()
-        server.middleware = [non_caching_mw, caching_mw]
+        server.middleware = [FakeOtherMW(), FakeCachingMW()]
         result = _collect_stats(server)
 
-        non_caching_mw.statistics.assert_not_called()
         for name in CACHE_COLLECTION_NAMES:
             assert result[name]["hits"] == 2
+            assert result[name]["misses"] == 0
 
 
 # ── app_lifespan ────────────────────────────────────────────────────────────
