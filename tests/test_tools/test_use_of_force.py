@@ -50,6 +50,11 @@ class TestUseOfForce:
         await get_use_of_force_data("questions", group="g1", year=2022, quarter=3, ctx=ctx)
         app_ctx.api_get.assert_called_once_with("/uof/questions/g1/2022/3")
 
+    async def test_questions_rejects_malicious_group(self, ctx, app_ctx):
+        r = await get_use_of_force_data("questions", group="../summary", year=2022, quarter=3, ctx=ctx)
+        assert "Invalid group" in r
+        app_ctx.api_get.assert_not_called()
+
     # ── reports ──
     async def test_reports_requires_params(self, ctx):
         r = await get_use_of_force_data("reports", ctx=ctx)
@@ -58,3 +63,13 @@ class TestUseOfForce:
     async def test_reports_path(self, ctx, app_ctx):
         await get_use_of_force_data("reports", group="g1", spec="s1", ctx=ctx)
         app_ctx.api_get.assert_called_once_with("/uof/reports/g1/s1")
+
+    async def test_reports_rejects_malicious_group(self, ctx, app_ctx):
+        r = await get_use_of_force_data("reports", group="../x", spec="s1", ctx=ctx)
+        assert "Invalid group" in r
+        app_ctx.api_get.assert_not_called()
+
+    async def test_reports_rejects_malicious_spec(self, ctx, app_ctx):
+        r = await get_use_of_force_data("reports", group="g1", spec="../../etc", ctx=ctx)
+        assert "Invalid spec" in r
+        app_ctx.api_get.assert_not_called()

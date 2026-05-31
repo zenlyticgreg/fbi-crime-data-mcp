@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+- Validate user-supplied URL path segments (`ori`, `district_code`, use-of-force `group`/`spec`) via new `validate_path_segment()`, rejecting `/`, `\`, and `..` to prevent path traversal / endpoint redirection
+- Stop surfacing or logging the raw `httpx` exception in `api_get()`'s network-error branch; some httpx errors carry the request URL, which includes the `API_KEY` query parameter. The response is now a generic message and only the exception type is logged
+
+### Fixed
+- `manage_cache` runs its blocking filesystem I/O (glob/read/rmtree) via `asyncio.to_thread`, so it no longer stalls the event loop
+
+### Added
+- Regression tests for `validate_path_segment`, the `ori` path through `validate_crime_data_params`, and malicious-ORI rejection in `get_police_employment`
+
 ## [0.3.1] - 2026-05-23
 
 ### Fixed

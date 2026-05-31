@@ -74,7 +74,11 @@ class AppContext:
         except httpx.TimeoutException:
             return "Error: Request timed out. The FBI API may be slow — try again."
         except httpx.HTTPError as e:
-            return f"Error: Network error connecting to FBI API: {e}"
+            # Don't surface or log the raw exception: some httpx errors include
+            # the request URL, which carries the API_KEY query parameter. Log
+            # only the exception type so the key can't leak into log files.
+            logger.warning("Network error connecting to FBI API: %s", type(e).__name__)
+            return "Error: Network error connecting to FBI API. Check your connection and try again."
 
         if response.status_code == 429:
             return "Error: FBI API rate limit exceeded (HTTP 429). Wait a few minutes before retrying."

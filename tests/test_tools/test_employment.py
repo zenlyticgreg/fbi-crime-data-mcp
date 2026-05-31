@@ -24,6 +24,10 @@ class TestPoliceEmployment:
         r = await get_police_employment("agency", "2015", "2022", ori="X1", ctx=ctx)
         assert "'state' is required" in r
 
+    async def test_agency_rejects_malicious_ori(self, ctx):
+        r = await get_police_employment("agency", "2015", "2022", state="NY", ori="../national", ctx=ctx)
+        assert "Invalid ori" in r
+
     async def test_region_requires_valid_region(self, ctx):
         r = await get_police_employment("region", "2015", "2022", ctx=ctx)
         assert "'region' is required" in r

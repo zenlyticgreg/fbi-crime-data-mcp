@@ -42,6 +42,11 @@ class TestLookupAgency:
         await lookup_agency("by_ori", state="NY", ori="NY0303000", ctx=ctx)
         app_ctx.api_get.assert_called_once_with("/agency/NY/NY0303000")
 
+    async def test_by_ori_rejects_malicious_ori(self, ctx, app_ctx):
+        r = await lookup_agency("by_ori", state="NY", ori="../national", ctx=ctx)
+        assert "Invalid ori" in r
+        app_ctx.api_get.assert_not_called()
+
     # ── by_district ──
     async def test_by_district_missing_code(self, ctx):
         r = await lookup_agency("by_district", ctx=ctx)
@@ -50,6 +55,11 @@ class TestLookupAgency:
     async def test_by_district_success(self, ctx, app_ctx):
         await lookup_agency("by_district", district_code="DC1", ctx=ctx)
         app_ctx.api_get.assert_called_once_with("/agency/byDistCode/DC1")
+
+    async def test_by_district_rejects_malicious_code(self, ctx, app_ctx):
+        r = await lookup_agency("by_district", district_code="../../etc", ctx=ctx)
+        assert "Invalid district_code" in r
+        app_ctx.api_get.assert_not_called()
 
     # ── name_filter ──
     async def test_name_filter_filters_by_state(self, ctx, app_ctx):

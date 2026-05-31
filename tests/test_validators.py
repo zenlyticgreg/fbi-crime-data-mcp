@@ -14,6 +14,7 @@ from fbi_crime_data_mcp.validators import (
     validate_mm_yyyy,
     validate_offense,
     validate_ori_required,
+    validate_path_segment,
     validate_state,
     validate_state_required,
     validate_year_int,
@@ -414,3 +415,51 @@ class TestEffectiveAggregate:
     def test_totals_returns_monthly(self):
         assert effective_aggregate("totals", "yearly") == "monthly"
         assert effective_aggregate("totals", "bad") == "monthly"
+
+
+class TestValidatePathSegment:
+    def test_valid_ori(self):
+        assert validate_path_segment("NY0303000", "ori") is None
+
+    def test_valid_with_dot_dash_underscore(self):
+        assert validate_path_segment("a.b-c_1", "spec") is None
+
+    def test_empty_rejected(self):
+        assert validate_path_segment("", "group") is not None
+
+    def test_slash_rejected(self):
+        err = validate_path_segment("../national", "group")
+        assert err is not None
+        assert "group" in err
+
+    def test_double_dot_rejected(self):
+        assert validate_path_segment("..", "ori") is not None
+
+    def test_backslash_rejected(self):
+        assert validate_path_segment("a\\b", "spec") is not None
+
+    def test_space_rejected(self):
+        assert validate_path_segment("a b", "group") is not None
+
+
+class TestValidateCrimeDataParamsOri:
+    def test_malicious_ori_rejected(self):
+        err = validate_crime_data_params(
+            level="agency",
+            from_date="01-2020",
+            to_date="12-2020",
+            ori="../national",
+        )
+        assert err is not None
+        assert "ori" in err
+
+    def test_valid_ori_accepted(self):
+        assert (
+            validate_crime_data_params(
+                level="agency",
+                from_date="01-2020",
+                to_date="12-2020",
+                ori="NY0303000",
+            )
+            is None
+        )

@@ -4,7 +4,7 @@ from fastmcp import Context
 
 from ..api_client import AppContext
 from ..server import mcp
-from ..validators import validate_state, validate_year_int
+from ..validators import validate_path_segment, validate_state, validate_year_int
 
 
 @mcp.tool()
@@ -53,9 +53,15 @@ async def get_use_of_force_data(
             return err
         if not (1 <= quarter <= 4):
             return "Parameter 'quarter' must be between 1 and 4."
+        err = validate_path_segment(group, "group")
+        if err:
+            return err
         return await app_ctx.api_get(f"/uof/questions/{group}/{year}/{quarter}")
 
     else:  # reports
         if not group or not spec:
             return "Parameters 'group' and 'spec' are required for reports type."
+        for err in (validate_path_segment(group, "group"), validate_path_segment(spec, "spec")):
+            if err:
+                return err
         return await app_ctx.api_get(f"/uof/reports/{group}/{spec}")

@@ -12,6 +12,11 @@ MM_YYYY_RE = re.compile(r"^(0[1-9]|1[0-2])-(\d{4})$")
 
 _YYYY_RE = re.compile(r"^\d{4}$")
 
+# Safe characters for values spliced directly into request URL paths (ORI codes,
+# district codes, UoF group/spec). Disallows "/" and "\" so user-supplied values
+# cannot perform path traversal or redirect the request to another endpoint.
+_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
 
 def validate_level(level: str, valid: tuple[str, ...] = ("national", "state", "agency")) -> str | None:
     """Return error string if level is invalid, else None."""
@@ -152,6 +157,7 @@ def validate_crime_data_params(
         validate_state_required(level, state),
         validate_ori_required(level, ori),
         validate_state(state),
+        validate_path_segment(ori, "ori") if ori else None,
         validate_mm_yyyy(from_date, "from_date"),
         validate_mm_yyyy(to_date, "to_date"),
         validate_date_order_mm_yyyy(from_date, to_date),
@@ -168,6 +174,22 @@ def validate_offense(code: str, valid_codes: dict[str, str], label: str, hint: s
         if hint:
             msg = f"{msg} {hint}"
         return msg
+    return None
+
+
+def validate_path_segment(value: str, param_name: str) -> str | None:
+    """Return error string if value is unsafe as a URL path segment, else None.
+
+    Guards against path traversal / endpoint redirection for values that are
+    interpolated directly into request paths (e.g. ORI, district code, UoF
+    group/spec). Allows only letters, digits, '.', '_', and '-', and rejects
+    any '..' sequence.
+    """
+    if not value or ".." in value or not _PATH_SEGMENT_RE.match(value):
+        return (
+            f"Invalid {param_name} '{value}'. Must be non-empty, contain no '..', "
+            "and use only letters, digits, '.', '_', or '-'."
+        )
     return None
 
 
