@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 from datetime import UTC, datetime
@@ -78,12 +79,14 @@ async def manage_cache(action: str) -> str:
     if not _CACHE_DIR.exists():
         return "Cache directory does not exist. No cached data."
 
+    # Cache scanning/clearing does blocking filesystem I/O (glob, read, rmtree),
+    # so run it in a worker thread to avoid stalling the event loop.
     if action == "status":
-        return _cache_status()
+        return await asyncio.to_thread(_cache_status)
     elif action == "clear":
-        return _clear_cache(expired_only=False)
+        return await asyncio.to_thread(_clear_cache, expired_only=False)
     else:
-        return _clear_cache(expired_only=True)
+        return await asyncio.to_thread(_clear_cache, expired_only=True)
 
 
 def _cache_status() -> str:

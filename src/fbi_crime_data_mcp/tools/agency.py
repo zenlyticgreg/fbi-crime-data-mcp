@@ -5,7 +5,7 @@ from fastmcp import Context
 from ..api_client import AppContext
 from ..response_utils import filter_agencies_by_name, paginate_response
 from ..server import mcp
-from ..validators import validate_state
+from ..validators import validate_path_segment, validate_state
 
 
 @mcp.tool()
@@ -47,11 +47,17 @@ async def lookup_agency(
         err = validate_state(state)
         if err:
             return err
+        err = validate_path_segment(ori, "ori")
+        if err:
+            return err
         path = f"/agency/{state.upper()}/{ori}"
 
     else:  # by_district
         if not district_code:
             return "Parameter 'district_code' is required for by_district lookup."
+        err = validate_path_segment(district_code, "district_code")
+        if err:
+            return err
         path = f"/agency/byDistCode/{district_code}"
 
     app_ctx: AppContext = ctx.lifespan_context
