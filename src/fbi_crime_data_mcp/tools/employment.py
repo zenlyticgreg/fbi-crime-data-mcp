@@ -7,6 +7,7 @@ from ..server import mcp
 from ..validators import (
     validate_date_order_yyyy,
     validate_level,
+    validate_path_segment,
     validate_state,
     validate_state_required,
     validate_yyyy,
@@ -44,6 +45,9 @@ async def get_police_employment(
             return "Parameter 'state' is required when level is 'agency'."
         if not ori:
             return "Parameter 'ori' is required when level is 'agency'."
+        err = validate_path_segment(ori, "ori")
+        if err:
+            return err
 
     err = validate_state_required(level, state)
     if err:
