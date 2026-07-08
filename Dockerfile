@@ -20,7 +20,7 @@ RUN uv sync --frozen --no-dev
 FROM python:3.12-slim-bookworm AS runtime
 ENV PATH="/app/.venv/bin:$PATH"
 
-RUN groupadd -r mcp && useradd -r -g mcp mcp
+RUN groupadd -r mcp && useradd -r -m -d /home/mcp -g mcp mcp
 WORKDIR /app
 
 COPY --from=builder --chown=mcp:mcp /app/.venv ./.venv
