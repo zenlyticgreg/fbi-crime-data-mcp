@@ -8,6 +8,12 @@ An MCP (Model Context Protocol) server that provides access to the [FBI's Crime 
 
 Query crime statistics, arrest data, hate crimes, NIBRS incidents, law enforcement employment, and more — directly from any MCP-compatible client.
 
+> This fork adds an optional streamable-HTTP transport (`TRANSPORT=http`) alongside
+> upstream's default stdio, plus a bearer-token gate (`MCP_AUTH_TOKEN`) and a `/health`
+> endpoint — so it can run as a remote MCP connector (e.g. a Zenlytic MCP Connector),
+> which requires a publicly reachable HTTPS endpoint that stdio can't serve. See
+> [Deployed on Railway](#deployed-on-railway) below. Default stdio behavior is unchanged.
+
 Created for data journalists, researchers, and anyone interested in exploring US crime data with the power of language models. Initially created for use by the [Policy Analyst Agent](https://github.com/dathere/qsv/blob/master/.claude/skills/agents/policy-analyst.md) of the [qsv Claude Cowork plugin](https://github.com/dathere/qsv?tab=readme-ov-file#qsv-blazing-fast-data-wrangling-toolkit).
 
 ## Features

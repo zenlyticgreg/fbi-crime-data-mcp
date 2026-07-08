@@ -1,5 +1,7 @@
 """FBI Crime Data Explorer MCP Server."""
 
+import os
+
 from fastmcp import FastMCP
 from fastmcp.server.middleware.caching import (
     CallToolSettings,
@@ -10,10 +12,25 @@ from key_value.aio.stores.filetree import (
     FileTreeV1CollectionSanitizationStrategy,
     FileTreeV1KeySanitizationStrategy,
 )
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from .api_client import app_lifespan
 from .constants import CACHE_DIR
 from .spillover import ResponseSpilloverMiddleware
+
+# Upstream ships stdio-only. Added here: an optional bearer-token gate so
+# this can run as a remote streamable-HTTP MCP connector (e.g. Zenlytic's
+# MCP Connectors), which require a publicly reachable HTTPS endpoint that
+# stdio can't serve. StaticTokenVerifier is a single shared secret — fine
+# for a small trusted group hitting one server, not a substitute for
+# per-user OAuth if this ever needs per-caller revocation.
+_auth = None
+_mcp_auth_token = os.environ.get("MCP_AUTH_TOKEN", "").strip()
+if _mcp_auth_token:
+    from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
+
+    _auth = StaticTokenVerifier(tokens={_mcp_auth_token: {"client_id": "shared"}})
 
 mcp = FastMCP(
     "FBI Crime Data Explorer",
@@ -26,7 +43,14 @@ mcp = FastMCP(
         "(e.g., '01-2020'), except police employment and trends which use yyyy format."
     ),
     lifespan=app_lifespan,
+    auth=_auth,
 )
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> JSONResponse:
+    """Unauthenticated health probe for container orchestration (e.g. Railway)."""
+    return JSONResponse({"status": "ok", "service": "fbi-crime-data-mcp"})
 
 # Import tool modules to register them with the server
 from .tools import (  # noqa: E402, F401
@@ -119,8 +143,20 @@ mcp.add_middleware(ResponseSpilloverMiddleware())
 
 
 def main():
-    """Entry point for the MCP server."""
-    mcp.run()
+    """Entry point for the MCP server. TRANSPORT=http for a remote connector
+    (default stdio matches upstream, for local clients like Claude Desktop/Code)."""
+    if os.environ.get("TRANSPORT") == "http":
+        if _auth is None:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "MCP_AUTH_TOKEN is not set — /mcp is unauthenticated. "
+                "Set it before exposing this server publicly."
+            )
+        port = int(os.environ.get("PORT", "8000"))
+        mcp.run(transport="http", host="0.0.0.0", port=port)
+    else:
+        mcp.run()
 
 
 if __name__ == "__main__":
