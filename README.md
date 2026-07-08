@@ -60,6 +60,22 @@ Created for data journalists, researchers, and anyone interested in exploring US
 FBI_API_KEY=your-key uvx fbi-crime-data-mcp
 ```
 
+## Deployed on Railway
+
+This fork is deployed at project `fbi-crime-data-mcp` on Railway, built directly from this
+repo's `Dockerfile` (no database — the tiered file cache is local to the container and simply
+resets on redeploy):
+
+- **App service** — env vars `TRANSPORT=http`, `PORT=8000`, `FBI_API_KEY`, `MCP_AUTH_TOKEN`.
+- **Public domain** — a generated `*.up.railway.app` domain targets container port 8000.
+  `/mcp` requires `Authorization: Bearer <MCP_AUTH_TOKEN>`; `/health` is open for Railway's
+  health probes.
+
+To redeploy: push to `main` and trigger a build, or deploy the local working tree directly
+(`railway up` / the Railway MCP `deploy` tool) — both read `Dockerfile` from the repo root, no
+`railway.json` needed since this is a single-directory repo (unlike some other forks in this
+workspace that live in a monorepo layout).
+
 ## Available Tools (17)
 
 ### Core Crime Data
